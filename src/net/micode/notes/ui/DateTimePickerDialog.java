@@ -29,6 +29,9 @@ import android.content.DialogInterface.OnClickListener;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 
+/**
+ * 日期时间选择对话框：包装 `DateTimePicker` 并在确定时回传时间戳。
+ */
 public class DateTimePickerDialog extends AlertDialog implements OnClickListener {
 
     private Calendar mDate = Calendar.getInstance();
@@ -37,14 +40,17 @@ public class DateTimePickerDialog extends AlertDialog implements OnClickListener
     private DateTimePicker mDateTimePicker;
 
     public interface OnDateTimeSetListener {
+        // 确认回调：用户点击确定后返回选择的时间戳（毫秒）。
         void OnDateTimeSet(AlertDialog dialog, long date);
     }
 
+    // 构造：初始化控件、监听与标题，并设定初始时间。
     public DateTimePickerDialog(Context context, long date) {
         super(context);
         mDateTimePicker = new DateTimePicker(context);
         setView(mDateTimePicker);
         mDateTimePicker.setOnDateTimeChangedListener(new OnDateTimeChangedListener() {
+            // 控件变化回调：同步内部 Calendar 并刷新标题。
             public void onDateTimeChanged(DateTimePicker view, int year, int month,
                     int dayOfMonth, int hourOfDay, int minute) {
                 mDate.set(Calendar.YEAR, year);
@@ -64,14 +70,17 @@ public class DateTimePickerDialog extends AlertDialog implements OnClickListener
         updateTitle(mDate.getTimeInMillis());
     }
 
+    // 设置 24 小时制显示开关。
     public void set24HourView(boolean is24HourView) {
         mIs24HourView = is24HourView;
     }
 
+    // 设置“确定”按钮回调。
     public void setOnDateTimeSetListener(OnDateTimeSetListener callBack) {
         mOnDateTimeSetListener = callBack;
     }
 
+    // 刷新对话框标题：显示当前选择的日期时间。
     private void updateTitle(long date) {
         int flag =
             DateUtils.FORMAT_SHOW_YEAR |
@@ -81,6 +90,7 @@ public class DateTimePickerDialog extends AlertDialog implements OnClickListener
         setTitle(DateUtils.formatDateTime(this.getContext(), date, flag));
     }
 
+    // 点击回调：用户确认后触发 OnDateTimeSetListener。
     public void onClick(DialogInterface arg0, int arg1) {
         if (mOnDateTimeSetListener != null) {
             mOnDateTimeSetListener.OnDateTimeSet(this, mDate.getTimeInMillis());

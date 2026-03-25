@@ -20,8 +20,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+/**
+ * 闹钟到点广播接收器：收到提醒广播后拉起提醒界面。
+ */
 public class AlarmReceiver extends BroadcastReceiver {
     @Override
+    // 广播回调：启动 `AlarmAlertActivity` 显示提醒。
     public void onReceive(Context context, Intent intent) {
         intent.setClass(context, AlarmAlertActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

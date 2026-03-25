@@ -17,208 +17,215 @@
 package net.micode.notes.ui;
 
 import android.content.Context;
-import android.database.Cursor;
+import android.graphics.Rect;
+import android.text.Layout;
+import android.text.Selection;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.URLSpan;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.ContextMenu;
+import android.view.KeyEvent;
+import android.view.MenuItem;
+import android.view.MenuItem.OnMenuItemClickListener;
+import android.view.MotionEvent;
+import android.widget.EditText;
 
-import net.micode.notes.data.Contact;
-import net.micode.notes.data.Notes;
-import net.micode.notes.data.Notes.NoteColumns;
-import net.micode.notes.tool.DataUtils;
+import net.micode.notes.R;
 
+import java.util.HashMap;
+import java.util.Map;
 
-public class NoteItemData {
-    static final String [] PROJECTION = new String [] {
-        NoteColumns.ID,
-        NoteColumns.ALERTED_DATE,
-        NoteColumns.BG_COLOR_ID,
-        NoteColumns.CREATED_DATE,
-        NoteColumns.HAS_ATTACHMENT,
-        NoteColumns.MODIFIED_DATE,
-        NoteColumns.NOTES_COUNT,
-        NoteColumns.PARENT_ID,
-        NoteColumns.SNIPPET,
-        NoteColumns.TYPE,
-        NoteColumns.WIDGET_ID,
-        NoteColumns.WIDGET_TYPE,
-    };
+/**
+ * 笔记编辑输入框：扩展 `EditText`，支持回车拆分/删除合并，以及链接上下文菜单。
+ */
+public class NoteEditText extends EditText {
+    private static final String TAG = "NoteEditText";
+    private int mIndex;
+    private int mSelectionStartBeforeDelete;
 
-    private static final int ID_COLUMN                    = 0;
-    private static final int ALERTED_DATE_COLUMN          = 1;
-    private static final int BG_COLOR_ID_COLUMN           = 2;
-    private static final int CREATED_DATE_COLUMN          = 3;
-    private static final int HAS_ATTACHMENT_COLUMN        = 4;
-    private static final int MODIFIED_DATE_COLUMN         = 5;
-    private static final int NOTES_COUNT_COLUMN           = 6;
-    private static final int PARENT_ID_COLUMN             = 7;
-    private static final int SNIPPET_COLUMN               = 8;
-    private static final int TYPE_COLUMN                  = 9;
-    private static final int WIDGET_ID_COLUMN             = 10;
-    private static final int WIDGET_TYPE_COLUMN           = 11;
+    private static final String SCHEME_TEL = "tel:" ;
+    private static final String SCHEME_HTTP = "http:" ;
+    private static final String SCHEME_EMAIL = "mailto:" ;
 
-    private long mId;
-    private long mAlertDate;
-    private int mBgColorId;
-    private long mCreatedDate;
-    private boolean mHasAttachment;
-    private long mModifiedDate;
-    private int mNotesCount;
-    private long mParentId;
-    private String mSnippet;
-    private int mType;
-    private int mWidgetId;
-    private int mWidgetType;
-    private String mName;
-    private String mPhoneNumber;
-
-    private boolean mIsLastItem;
-    private boolean mIsFirstItem;
-    private boolean mIsOnlyOneItem;
-    private boolean mIsOneNoteFollowingFolder;
-    private boolean mIsMultiNotesFollowingFolder;
-
-    public NoteItemData(Context context, Cursor cursor) {
-        mId = cursor.getLong(ID_COLUMN);
-        mAlertDate = cursor.getLong(ALERTED_DATE_COLUMN);
-        mBgColorId = cursor.getInt(BG_COLOR_ID_COLUMN);
-        mCreatedDate = cursor.getLong(CREATED_DATE_COLUMN);
-        mHasAttachment = (cursor.getInt(HAS_ATTACHMENT_COLUMN) > 0) ? true : false;
-        mModifiedDate = cursor.getLong(MODIFIED_DATE_COLUMN);
-        mNotesCount = cursor.getInt(NOTES_COUNT_COLUMN);
-        mParentId = cursor.getLong(PARENT_ID_COLUMN);
-        mSnippet = cursor.getString(SNIPPET_COLUMN);
-        mSnippet = mSnippet.replace(NoteEditActivity.TAG_CHECKED, "").replace(
-                NoteEditActivity.TAG_UNCHECKED, "");
-        mType = cursor.getInt(TYPE_COLUMN);
-        mWidgetId = cursor.getInt(WIDGET_ID_COLUMN);
-        mWidgetType = cursor.getInt(WIDGET_TYPE_COLUMN);
-
-        mPhoneNumber = "";
-        if (mParentId == Notes.ID_CALL_RECORD_FOLDER) {
-            mPhoneNumber = DataUtils.getCallNumberByNoteId(context.getContentResolver(), mId);
-            if (!TextUtils.isEmpty(mPhoneNumber)) {
-                mName = Contact.getContact(context, mPhoneNumber);
-                if (mName == null) {
-                    mName = mPhoneNumber;
-                }
-            }
-        }
-
-        if (mName == null) {
-            mName = "";
-        }
-        checkPostion(cursor);
+    private static final Map<String, Integer> sSchemaActionResMap = new HashMap<String, Integer>();
+    static {
+        sSchemaActionResMap.put(SCHEME_TEL, R.string.note_link_tel);
+        sSchemaActionResMap.put(SCHEME_HTTP, R.string.note_link_web);
+        sSchemaActionResMap.put(SCHEME_EMAIL, R.string.note_link_email);
     }
 
-    private void checkPostion(Cursor cursor) {
-        mIsLastItem = cursor.isLast() ? true : false;
-        mIsFirstItem = cursor.isFirst() ? true : false;
-        mIsOnlyOneItem = (cursor.getCount() == 1);
-        mIsMultiNotesFollowingFolder = false;
-        mIsOneNoteFollowingFolder = false;
+    /**
+     * Call by the {@link NoteEditActivity} to delete or add edit text
+     */
+    public interface OnTextViewChangeListener {
+        /**
+         * Delete current edit text when {@link KeyEvent#KEYCODE_DEL} happens
+         * and the text is null
+         */
+        void onEditTextDelete(int index, String text);
 
-        if (mType == Notes.TYPE_NOTE && !mIsFirstItem) {
-            int position = cursor.getPosition();
-            if (cursor.moveToPrevious()) {
-                if (cursor.getInt(TYPE_COLUMN) == Notes.TYPE_FOLDER
-                        || cursor.getInt(TYPE_COLUMN) == Notes.TYPE_SYSTEM) {
-                    if (cursor.getCount() > (position + 1)) {
-                        mIsMultiNotesFollowingFolder = true;
-                    } else {
-                        mIsOneNoteFollowingFolder = true;
+        /**
+         * Add edit text after current edit text when {@link KeyEvent#KEYCODE_ENTER}
+         * happen
+         */
+        void onEditTextEnter(int index, String text);
+
+        /**
+         * Hide or show item option when text change
+         */
+        void onTextChange(int index, boolean hasText);
+    }
+
+    private OnTextViewChangeListener mOnTextViewChangeListener;
+
+    // 构造：创建默认样式的编辑框并初始化索引。
+    public NoteEditText(Context context) {
+        super(context, null);
+        mIndex = 0;
+    }
+
+    // 设置当前编辑框在编辑列表中的位置索引。
+    public void setIndex(int index) {
+        mIndex = index;
+    }
+
+    // 设置文本变化监听（用于 NoteEditActivity 管理多个编辑框）。
+    public void setOnTextViewChangeListener(OnTextViewChangeListener listener) {
+        mOnTextViewChangeListener = listener;
+    }
+
+    // 构造：从 XML 属性创建编辑框。
+    public NoteEditText(Context context, AttributeSet attrs) {
+        super(context, attrs, android.R.attr.editTextStyle);
+    }
+
+    // 构造：从 XML 属性创建编辑框并指定 defStyle。
+    public NoteEditText(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        // TODO Auto-generated constructor stub
+    }
+
+    @Override
+    // 触摸处理：将触摸点转换为光标位置并移动选区。
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+
+                int x = (int) event.getX();
+                int y = (int) event.getY();
+                x -= getTotalPaddingLeft();
+                y -= getTotalPaddingTop();
+                x += getScrollX();
+                y += getScrollY();
+
+                Layout layout = getLayout();
+                int line = layout.getLineForVertical(y);
+                int off = layout.getOffsetForHorizontal(line, x);
+                Selection.setSelection(getText(), off);
+                break;
+        }
+
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    // 按键按下：记录删除前光标位置，并在回车时交给外部处理。
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_ENTER:
+                if (mOnTextViewChangeListener != null) {
+                    return false;
+                }
+                break;
+            case KeyEvent.KEYCODE_DEL:
+                mSelectionStartBeforeDelete = getSelectionStart();
+                break;
+            default:
+                break;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    // 按键抬起：处理删除合并与回车拆分，并通知外部监听。
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        switch(keyCode) {
+            case KeyEvent.KEYCODE_DEL:
+                if (mOnTextViewChangeListener != null) {
+                    if (0 == mSelectionStartBeforeDelete && mIndex != 0) {
+                        mOnTextViewChangeListener.onEditTextDelete(mIndex, getText().toString());
+                        return true;
+                    }
+                } else {
+                    Log.d(TAG, "OnTextViewChangeListener was not seted");
+                }
+                break;
+            case KeyEvent.KEYCODE_ENTER:
+                if (mOnTextViewChangeListener != null) {
+                    int selectionStart = getSelectionStart();
+                    String text = getText().subSequence(selectionStart, length()).toString();
+                    setText(getText().subSequence(0, selectionStart));
+                    mOnTextViewChangeListener.onEditTextEnter(mIndex + 1, text);
+                } else {
+                    Log.d(TAG, "OnTextViewChangeListener was not seted");
+                }
+                break;
+            default:
+                break;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
+    // 焦点变化：在失焦/聚焦时通知外部当前项是否有内容。
+    protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+        if (mOnTextViewChangeListener != null) {
+            if (!focused && TextUtils.isEmpty(getText())) {
+                mOnTextViewChangeListener.onTextChange(mIndex, false);
+            } else {
+                mOnTextViewChangeListener.onTextChange(mIndex, true);
+            }
+        }
+        super.onFocusChanged(focused, direction, previouslyFocusedRect);
+    }
+
+    @Override
+    // 创建上下文菜单：在选中链接时增加“拨号/打开网页/发送邮件”等操作。
+    protected void onCreateContextMenu(ContextMenu menu) {
+        if (getText() instanceof Spanned) {
+            int selStart = getSelectionStart();
+            int selEnd = getSelectionEnd();
+
+            int min = Math.min(selStart, selEnd);
+            int max = Math.max(selStart, selEnd);
+
+            final URLSpan[] urls = ((Spanned) getText()).getSpans(min, max, URLSpan.class);
+            if (urls.length == 1) {
+                int defaultResId = 0;
+                for(String schema: sSchemaActionResMap.keySet()) {
+                    if(urls[0].getURL().indexOf(schema) >= 0) {
+                        defaultResId = sSchemaActionResMap.get(schema);
+                        break;
                     }
                 }
-                if (!cursor.moveToNext()) {
-                    throw new IllegalStateException("cursor move to previous but can't move back");
+
+                if (defaultResId == 0) {
+                    defaultResId = R.string.note_link_other;
                 }
+
+                menu.add(0, 0, 0, defaultResId).setOnMenuItemClickListener(
+                        new OnMenuItemClickListener() {
+                            // 菜单点击：触发 URLSpan 默认点击行为。
+                            public boolean onMenuItemClick(MenuItem item) {
+                                // goto a new intent
+                                urls[0].onClick(NoteEditText.this);
+                                return true;
+                            }
+                        });
             }
         }
-    }
-
-    public boolean isOneFollowingFolder() {
-        return mIsOneNoteFollowingFolder;
-    }
-
-    public boolean isMultiFollowingFolder() {
-        return mIsMultiNotesFollowingFolder;
-    }
-
-    public boolean isLast() {
-        return mIsLastItem;
-    }
-
-    public String getCallName() {
-        return mName;
-    }
-
-    public boolean isFirst() {
-        return mIsFirstItem;
-    }
-
-    public boolean isSingle() {
-        return mIsOnlyOneItem;
-    }
-
-    public long getId() {
-        return mId;
-    }
-
-    public long getAlertDate() {
-        return mAlertDate;
-    }
-
-    public long getCreatedDate() {
-        return mCreatedDate;
-    }
-
-    public boolean hasAttachment() {
-        return mHasAttachment;
-    }
-
-    public long getModifiedDate() {
-        return mModifiedDate;
-    }
-
-    public int getBgColorId() {
-        return mBgColorId;
-    }
-
-    public long getParentId() {
-        return mParentId;
-    }
-
-    public int getNotesCount() {
-        return mNotesCount;
-    }
-
-    public long getFolderId () {
-        return mParentId;
-    }
-
-    public int getType() {
-        return mType;
-    }
-
-    public int getWidgetType() {
-        return mWidgetType;
-    }
-
-    public int getWidgetId() {
-        return mWidgetId;
-    }
-
-    public String getSnippet() {
-        return mSnippet;
-    }
-
-    public boolean hasAlert() {
-        return (mAlertDate > 0);
-    }
-
-    public boolean isCallRecord() {
-        return (mParentId == Notes.ID_CALL_RECORD_FOLDER && !TextUtils.isEmpty(mPhoneNumber));
-    }
-
-    public static int getNoteType(Cursor cursor) {
-        return cursor.getInt(TYPE_COLUMN);
+        super.onCreateContextMenu(menu);
     }
 }

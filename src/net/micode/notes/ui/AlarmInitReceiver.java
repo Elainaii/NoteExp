@@ -28,6 +28,9 @@ import net.micode.notes.data.Notes;
 import net.micode.notes.data.Notes.NoteColumns;
 
 
+/**
+ * 开机/初始化广播接收器：扫描数据库中未来的提醒并重新设置系统闹钟。
+ */
 public class AlarmInitReceiver extends BroadcastReceiver {
 
     private static final String [] PROJECTION = new String [] {
@@ -39,6 +42,7 @@ public class AlarmInitReceiver extends BroadcastReceiver {
     private static final int COLUMN_ALERTED_DATE      = 1;
 
     @Override
+    // 广播回调：查询所有未到期提醒，并逐条注册到 AlarmManager。
     public void onReceive(Context context, Intent intent) {
         long currentDate = System.currentTimeMillis();
         Cursor c = context.getContentResolver().query(Notes.CONTENT_NOTE_URI,

@@ -37,6 +37,9 @@ import net.micode.notes.R;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 笔记编辑输入框：扩展 `EditText`，支持回车拆分/删除合并，以及链接上下文菜单。
+ */
 public class NoteEditText extends EditText {
     private static final String TAG = "NoteEditText";
     private int mIndex;
@@ -77,29 +80,35 @@ public class NoteEditText extends EditText {
 
     private OnTextViewChangeListener mOnTextViewChangeListener;
 
+    // 构造：创建默认样式的编辑框并初始化索引。
     public NoteEditText(Context context) {
         super(context, null);
         mIndex = 0;
     }
 
+    // 设置当前编辑框在编辑列表中的位置索引。
     public void setIndex(int index) {
         mIndex = index;
     }
 
+    // 设置文本变化监听（用于 NoteEditActivity 管理多个编辑框）。
     public void setOnTextViewChangeListener(OnTextViewChangeListener listener) {
         mOnTextViewChangeListener = listener;
     }
 
+    // 构造：从 XML 属性创建编辑框。
     public NoteEditText(Context context, AttributeSet attrs) {
         super(context, attrs, android.R.attr.editTextStyle);
     }
 
+    // 构造：从 XML 属性创建编辑框并指定 defStyle。
     public NoteEditText(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         // TODO Auto-generated constructor stub
     }
 
     @Override
+    // 触摸处理：将触摸点转换为光标位置并移动选区。
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -122,6 +131,7 @@ public class NoteEditText extends EditText {
     }
 
     @Override
+    // 按键按下：记录删除前光标位置，并在回车时交给外部处理。
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_ENTER:
@@ -139,6 +149,7 @@ public class NoteEditText extends EditText {
     }
 
     @Override
+    // 按键抬起：处理删除合并与回车拆分，并通知外部监听。
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         switch(keyCode) {
             case KeyEvent.KEYCODE_DEL:
@@ -168,6 +179,7 @@ public class NoteEditText extends EditText {
     }
 
     @Override
+    // 焦点变化：在失焦/聚焦时通知外部当前项是否有内容。
     protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
         if (mOnTextViewChangeListener != null) {
             if (!focused && TextUtils.isEmpty(getText())) {
@@ -180,6 +192,7 @@ public class NoteEditText extends EditText {
     }
 
     @Override
+    // 创建上下文菜单：在选中链接时增加“拨号/打开网页/发送邮件”等操作。
     protected void onCreateContextMenu(ContextMenu menu) {
         if (getText() instanceof Spanned) {
             int selStart = getSelectionStart();
@@ -204,6 +217,7 @@ public class NoteEditText extends EditText {
 
                 menu.add(0, 0, 0, defaultResId).setOnMenuItemClickListener(
                         new OnMenuItemClickListener() {
+                            // 菜单点击：触发 URLSpan 默认点击行为。
                             public boolean onMenuItemClick(MenuItem item) {
                                 // goto a new intent
                                 urls[0].onClick(NoteEditText.this);
