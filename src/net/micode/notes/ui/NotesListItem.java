@@ -30,6 +30,9 @@ import net.micode.notes.tool.DataUtils;
 import net.micode.notes.tool.ResourceParser.NoteItemBgResources;
 
 
+/**
+ * 笔记列表项视图：根据 `NoteItemData` 渲染标题、时间、提醒图标与背景。
+ */
 public class NotesListItem extends LinearLayout {
     private ImageView mAlert;
     private TextView mTitle;
@@ -38,6 +41,7 @@ public class NotesListItem extends LinearLayout {
     private NoteItemData mItemData;
     private CheckBox mCheckBox;
 
+    // 构造：inflate 列表项布局并缓存子控件引用。
     public NotesListItem(Context context) {
         super(context);
         inflate(context, R.layout.note_item, this);
@@ -48,6 +52,7 @@ public class NotesListItem extends LinearLayout {
         mCheckBox = (CheckBox) findViewById(android.R.id.checkbox);
     }
 
+    // 绑定数据到列表项：处理选择模式、文件夹/笔记/通话记录等不同展示。
     public void bind(Context context, NoteItemData data, boolean choiceMode, boolean checked) {
         if (choiceMode && data.getType() == Notes.TYPE_NOTE) {
             mCheckBox.setVisibility(View.VISIBLE);
@@ -99,6 +104,7 @@ public class NotesListItem extends LinearLayout {
         setBackground(data);
     }
 
+    // 根据数据类型与位置状态设置列表项背景。
     private void setBackground(NoteItemData data) {
         int id = data.getBgColorId();
         if (data.getType() == Notes.TYPE_NOTE) {
@@ -116,6 +122,7 @@ public class NotesListItem extends LinearLayout {
         }
     }
 
+    // 获取当前绑定的数据对象。
     public NoteItemData getItemData() {
         return mItemData;
     }

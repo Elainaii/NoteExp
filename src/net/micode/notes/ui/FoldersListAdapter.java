@@ -29,6 +29,9 @@ import net.micode.notes.data.Notes;
 import net.micode.notes.data.Notes.NoteColumns;
 
 
+/**
+ * 文件夹列表适配器：把文件夹 Cursor 绑定到列表项视图。
+ */
 public class FoldersListAdapter extends CursorAdapter {
     public static final String [] PROJECTION = {
         NoteColumns.ID,
@@ -38,17 +41,20 @@ public class FoldersListAdapter extends CursorAdapter {
     public static final int ID_COLUMN   = 0;
     public static final int NAME_COLUMN = 1;
 
+    // 构造：初始化 CursorAdapter。
     public FoldersListAdapter(Context context, Cursor c) {
         super(context, c);
         // TODO Auto-generated constructor stub
     }
 
     @Override
+    // 创建列表项视图。
     public View newView(Context context, Cursor cursor, ViewGroup parent) {
         return new FolderListItem(context);
     }
 
     @Override
+    // 绑定列表项数据：显示“父目录”或文件夹名称。
     public void bindView(View view, Context context, Cursor cursor) {
         if (view instanceof FolderListItem) {
             String folderName = (cursor.getLong(ID_COLUMN) == Notes.ID_ROOT_FOLDER) ? context
@@ -57,21 +63,25 @@ public class FoldersListAdapter extends CursorAdapter {
         }
     }
 
+    // 获取指定位置的文件夹名称（用于外部展示）。
     public String getFolderName(Context context, int position) {
         Cursor cursor = (Cursor) getItem(position);
         return (cursor.getLong(ID_COLUMN) == Notes.ID_ROOT_FOLDER) ? context
                 .getString(R.string.menu_move_parent_folder) : cursor.getString(NAME_COLUMN);
     }
 
+    // 文件夹列表项视图：仅包含一个名称 TextView。
     private class FolderListItem extends LinearLayout {
         private TextView mName;
 
+        // 构造：inflate 文件夹列表项布局。
         public FolderListItem(Context context) {
             super(context);
             inflate(context, R.layout.folder_list_item, this);
             mName = (TextView) findViewById(R.id.tv_folder_name);
         }
 
+        // 绑定名称到 TextView。
         public void bind(String name) {
             mName.setText(name);
         }

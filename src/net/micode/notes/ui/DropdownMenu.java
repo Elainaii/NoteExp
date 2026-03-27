@@ -27,11 +27,15 @@ import android.widget.PopupMenu.OnMenuItemClickListener;
 
 import net.micode.notes.R;
 
+/**
+ * 下拉菜单封装：用按钮承载 `PopupMenu` 并对外暴露常用操作。
+ */
 public class DropdownMenu {
     private Button mButton;
     private PopupMenu mPopupMenu;
     private Menu mMenu;
 
+    // 构造：绑定按钮并加载菜单资源。
     public DropdownMenu(Context context, Button button, int menuId) {
         mButton = button;
         mButton.setBackgroundResource(R.drawable.dropdown_icon);
@@ -39,22 +43,26 @@ public class DropdownMenu {
         mMenu = mPopupMenu.getMenu();
         mPopupMenu.getMenuInflater().inflate(menuId, mMenu);
         mButton.setOnClickListener(new OnClickListener() {
+            // 点击按钮时显示下拉菜单。
             public void onClick(View v) {
                 mPopupMenu.show();
             }
         });
     }
 
+    // 设置菜单项点击监听。
     public void setOnDropdownMenuItemClickListener(OnMenuItemClickListener listener) {
         if (mPopupMenu != null) {
             mPopupMenu.setOnMenuItemClickListener(listener);
         }
     }
 
+    // 通过 id 查找菜单项。
     public MenuItem findItem(int id) {
         return mMenu.findItem(id);
     }
 
+    // 设置按钮标题。
     public void setTitle(CharSequence title) {
         mButton.setText(title);
     }
