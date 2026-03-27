@@ -72,6 +72,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
+/**
+ * 笔记编辑页：支持普通文本/清单模式编辑、背景与字号设置、提醒与桌面快捷方式等。
+ */
 public class NoteEditActivity extends Activity implements OnClickListener,
         NoteSettingChangedListener, OnTextViewChangeListener {
     private class HeadViewHolder {
@@ -150,6 +153,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     private Pattern mPattern;
 
     @Override
+    // 生命周期：初始化页面、解析 Intent 并加载笔记。
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.setContentView(R.layout.note_edit);
@@ -166,6 +170,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
      * user load this activity, we should restore the former state
      */
     @Override
+    // 生命周期：在进程被杀后恢复笔记 id 并重新初始化状态。
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
         if (savedInstanceState != null && savedInstanceState.containsKey(Intent.EXTRA_UID)) {
@@ -179,6 +184,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 初始化页面状态：根据 Intent 动作加载/新建笔记并配置输入法模式。
     private boolean initActivityState(Intent intent) {
         /**
          * If the user specified the {@link Intent#ACTION_VIEW} but not provided with id,
@@ -263,11 +269,13 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 生命周期：刷新编辑界面内容与样式。
     protected void onResume() {
         super.onResume();
         initNoteScreen();
     }
 
+    // 初始化编辑区：设置字号、模式（普通/清单）、背景与头部提示。
     private void initNoteScreen() {
         mNoteEditor.setTextAppearance(this, TextAppearanceResources
                 .getTexAppearanceResource(mFontSizeId));
@@ -295,6 +303,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         showAlertHeader();
     }
 
+    // 更新提醒头部：根据是否设置闹钟显示/隐藏提醒信息。
     private void showAlertHeader() {
         if (mWorkingNote.hasClockAlert()) {
             long time = System.currentTimeMillis();
@@ -313,12 +322,14 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 生命周期：处理新的 Intent（例如从搜索结果进入）。
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         initActivityState(intent);
     }
 
     @Override
+    // 状态保存：确保新建笔记先入库并保存 noteId。
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         /**
@@ -334,6 +345,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 触摸分发：点击选择器外区域时关闭背景/字号选择面板。
     public boolean dispatchTouchEvent(MotionEvent ev) {
         if (mNoteBgColorSelector.getVisibility() == View.VISIBLE
                 && !inRangeOfView(mNoteBgColorSelector, ev)) {
@@ -349,6 +361,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return super.dispatchTouchEvent(ev);
     }
 
+    // 工具方法：判断触摸点是否落在指定 View 的屏幕区域内。
     private boolean inRangeOfView(View view, MotionEvent ev) {
         int []location = new int[2];
         view.getLocationOnScreen(location);
@@ -363,6 +376,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return true;
     }
 
+    // 初始化资源与控件引用，并绑定点击监听。
     private void initResources() {
         mHeadViewPanel = findViewById(R.id.note_title);
         mNoteHeaderHolder = new HeadViewHolder();
@@ -398,6 +412,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 生命周期：保存笔记并清理弹出的设置面板。
     protected void onPause() {
         super.onPause();
         if(saveNote()) {
@@ -406,6 +421,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         clearSettingState();
     }
 
+    // 更新桌面挂件：发送广播通知挂件刷新。
     private void updateWidget() {
         Intent intent = new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
         if (mWorkingNote.getWidgetType() == Notes.TYPE_WIDGET_2X) {
@@ -425,12 +441,13 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         setResult(RESULT_OK, intent);
     }
 
+    // 点击回调：处理背景颜色选择、字号选择与打开选择面板。
     public void onClick(View v) {
         int id = v.getId();
         if (id == R.id.btn_set_bg_color) {
             mNoteBgColorSelector.setVisibility(View.VISIBLE);
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
-                    -                    View.VISIBLE);
+                    View.VISIBLE);
         } else if (sBgSelectorBtnsMap.containsKey(id)) {
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
                     View.GONE);
@@ -453,6 +470,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 返回键处理：优先关闭设置面板，否则保存并退出。
     public void onBackPressed() {
         if(clearSettingState()) {
             return;
@@ -462,6 +480,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         super.onBackPressed();
     }
 
+    // 清理设置面板状态：关闭背景/字号选择器（若已打开）。
     private boolean clearSettingState() {
         if (mNoteBgColorSelector.getVisibility() == View.VISIBLE) {
             mNoteBgColorSelector.setVisibility(View.GONE);
@@ -473,6 +492,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return false;
     }
 
+    // 设置监听：背景颜色变化后刷新标题与编辑区背景。
     public void onBackgroundColorChanged() {
         findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
                 View.VISIBLE);
@@ -481,6 +501,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 菜单准备：根据笔记类型/模式动态刷新菜单项。
     public boolean onPrepareOptionsMenu(Menu menu) {
         if (isFinishing()) {
             return true;
@@ -506,56 +527,53 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     @Override
+    // 菜单点击：处理新建/删除/字号/清单模式/分享/桌面快捷方式/提醒等操作。
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_new_note:
-                createNewNote();
-                break;
-            case R.id.menu_delete:
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle(getString(R.string.alert_title_delete));
-                builder.setIcon(android.R.drawable.ic_dialog_alert);
-                builder.setMessage(getString(R.string.alert_message_delete_note));
-                builder.setPositiveButton(android.R.string.ok,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                deleteCurrentNote();
-                                finish();
-                            }
-                        });
-                builder.setNegativeButton(android.R.string.cancel, null);
-                builder.show();
-                break;
-            case R.id.menu_font_size:
-                mFontSizeSelector.setVisibility(View.VISIBLE);
-                findViewById(sFontSelectorSelectionMap.get(mFontSizeId)).setVisibility(View.VISIBLE);
-                break;
-            case R.id.menu_list_mode:
-                mWorkingNote.setCheckListMode(mWorkingNote.getCheckListMode() == 0 ?
-                        TextNote.MODE_CHECK_LIST : 0);
-                break;
-            case R.id.menu_share:
-                getWorkingText();
-                sendTo(this, mWorkingNote.getContent());
-                break;
-            case R.id.menu_send_to_desktop:
-                sendToDesktop();
-                break;
-            case R.id.menu_alert:
-                setReminder();
-                break;
-            case R.id.menu_delete_remind:
-                mWorkingNote.setAlertDate(0, false);
-                break;
-            default:
-                break;
+        // 迁移/构建适配改动说明（2026-03-25）：
+        // - 将 switch(item.getItemId()) + case R.id.* 改为 if/else。
+        // - 目的：避免在某些 AGP/构建配置下 R.id 不是编译期常量时触发“需要常量表达式”的编译错误。
+        final int id = item.getItemId();
+        if (id == R.id.menu_new_note) {
+            createNewNote();
+        } else if (id == R.id.menu_delete) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.alert_title_delete));
+            builder.setIcon(android.R.drawable.ic_dialog_alert);
+            builder.setMessage(getString(R.string.alert_message_delete_note));
+            builder.setPositiveButton(android.R.string.ok,
+                    new DialogInterface.OnClickListener() {
+                        // 确认回调：删除当前笔记并退出。
+                        public void onClick(DialogInterface dialog, int which) {
+                            deleteCurrentNote();
+                            finish();
+                        }
+                    });
+            builder.setNegativeButton(android.R.string.cancel, null);
+            builder.show();
+        } else if (id == R.id.menu_font_size) {
+            mFontSizeSelector.setVisibility(View.VISIBLE);
+            findViewById(sFontSelectorSelectionMap.get(mFontSizeId)).setVisibility(View.VISIBLE);
+        } else if (id == R.id.menu_list_mode) {
+            mWorkingNote.setCheckListMode(mWorkingNote.getCheckListMode() == 0 ?
+                    TextNote.MODE_CHECK_LIST : 0);
+        } else if (id == R.id.menu_share) {
+            getWorkingText();
+            sendTo(this, mWorkingNote.getContent());
+        } else if (id == R.id.menu_send_to_desktop) {
+            sendToDesktop();
+        } else if (id == R.id.menu_alert) {
+            setReminder();
+        } else if (id == R.id.menu_delete_remind) {
+            mWorkingNote.setAlertDate(0, false);
         }
         return true;
     }
 
+    // 设置提醒：弹出日期时间选择对话框并写入提醒时间。
     private void setReminder() {
         DateTimePickerDialog d = new DateTimePickerDialog(this, System.currentTimeMillis());
         d.setOnDateTimeSetListener(new OnDateTimeSetListener() {
+            // 确认回调：保存提醒时间到工作笔记。
             public void OnDateTimeSet(AlertDialog dialog, long date) {
                 mWorkingNote.setAlertDate(date	, true);
             }
@@ -567,6 +585,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
      * Share note to apps that support {@link Intent#ACTION_SEND} action
      * and {@text/plain} type
      */
+    // 分享：通过 ACTION_SEND 发送纯文本内容。
     private void sendTo(Context context, String info) {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.putExtra(Intent.EXTRA_TEXT, info);
@@ -574,6 +593,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         context.startActivity(intent);
     }
 
+    // 新建笔记：先保存当前内容，再启动新的编辑页。
     private void createNewNote() {
         // Firstly, save current editing notes
         saveNote();
@@ -586,6 +606,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         startActivity(intent);
     }
 
+    // 删除当前笔记：根据同步模式执行删除或移入回收站。
     private void deleteCurrentNote() {
         if (mWorkingNote.existInDatabase()) {
             HashSet<Long> ids = new HashSet<Long>();
@@ -608,10 +629,12 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         mWorkingNote.markDeleted(true);
     }
 
+    // 是否处于同步模式（已设置同步账号）。
     private boolean isSyncMode() {
         return NotesPreferenceActivity.getSyncAccountName(this).trim().length() > 0;
     }
 
+    // 提醒设置变更：注册/取消系统闹钟，并刷新头部提示。
     public void onClockAlertChanged(long date, boolean set) {
         /**
          * User could set clock to an unsaved note, so before setting the
@@ -642,10 +665,12 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 挂件设置变更：触发挂件更新。
     public void onWidgetChanged() {
         updateWidget();
     }
 
+    // 编辑框回调：删除某一行时合并文本并调整索引。
     public void onEditTextDelete(int index, String text) {
         int childCount = mEditTextList.getChildCount();
         if (childCount == 1) {
@@ -672,6 +697,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         edit.setSelection(length);
     }
 
+    // 编辑框回调：回车分行时插入新的编辑项并调整索引。
     public void onEditTextEnter(int index, String text) {
         /**
          * Should not happen, check for debug
@@ -691,6 +717,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 切换为清单模式：将文本按行拆分为多条可勾选项。
     private void switchToListMode(String text) {
         mEditTextList.removeAllViews();
         String[] items = text.split("\n");
@@ -708,6 +735,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         mEditTextList.setVisibility(View.VISIBLE);
     }
 
+    // 搜索高亮：将用户查询命中位置用背景色标注。
     private Spannable getHighlightQueryResult(String fullText, String userQuery) {
         SpannableString spannable = new SpannableString(fullText == null ? "" : fullText);
         if (!TextUtils.isEmpty(userQuery)) {
@@ -725,12 +753,14 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return spannable;
     }
 
+    // 创建清单条目视图：包含勾选框与可编辑文本。
     private View getListItem(String item, int index) {
         View view = LayoutInflater.from(this).inflate(R.layout.note_edit_list_item, null);
         final NoteEditText edit = (NoteEditText) view.findViewById(R.id.et_edit_text);
         edit.setTextAppearance(this, TextAppearanceResources.getTexAppearanceResource(mFontSizeId));
         CheckBox cb = ((CheckBox) view.findViewById(R.id.cb_edit_item));
         cb.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+            // 勾选回调：切换删除线显示。
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     edit.setPaintFlags(edit.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
@@ -756,6 +786,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return view;
     }
 
+    // 编辑框回调：当前条目是否有文本变化，用于显示/隐藏勾选框。
     public void onTextChange(int index, boolean hasText) {
         if (index >= mEditTextList.getChildCount()) {
             Log.e(TAG, "Wrong index, should not happen");
@@ -768,6 +799,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 模式变更回调：普通/清单模式切换时同步视图与工作文本。
     public void onCheckListModeChanged(int oldMode, int newMode) {
         if (newMode == TextNote.MODE_CHECK_LIST) {
             switchToListMode(mNoteEditor.getText().toString());
@@ -782,6 +814,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 汇总当前编辑内容到 WorkingNote（清单模式会带 √/□ 标记）。
     private boolean getWorkingText() {
         boolean hasChecked = false;
         if (mWorkingNote.getCheckListMode() == TextNote.MODE_CHECK_LIST) {
@@ -805,6 +838,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return hasChecked;
     }
 
+    // 保存笔记：写入数据库，并设置 RESULT_OK 用于列表刷新定位。
     private boolean saveNote() {
         getWorkingText();
         boolean saved = mWorkingNote.saveNote();
@@ -821,6 +855,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         return saved;
     }
 
+    // 发送到桌面：创建桌面快捷方式，指向当前笔记。
     private void sendToDesktop() {
         /**
          * Before send message to home, we should make sure that current
@@ -856,6 +891,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         }
     }
 
+    // 生成桌面快捷方式标题（截断到指定长度）。
     private String makeShortcutIconTitle(String content) {
         content = content.replace(TAG_CHECKED, "");
         content = content.replace(TAG_UNCHECKED, "");
@@ -863,10 +899,12 @@ public class NoteEditActivity extends Activity implements OnClickListener,
                 SHORTCUT_ICON_TITLE_MAX_LEN) : content;
     }
 
+    // 弹 Toast（短时）。
     private void showToast(int resId) {
         showToast(resId, Toast.LENGTH_SHORT);
     }
 
+    // 弹 Toast（自定义时长）。
     private void showToast(int resId, int duration) {
         Toast.makeText(this, resId, duration).show();
     }

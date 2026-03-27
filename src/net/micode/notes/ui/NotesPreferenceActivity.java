@@ -48,6 +48,9 @@ import net.micode.notes.data.Notes.NoteColumns;
 import net.micode.notes.gtask.remote.GTaskSyncService;
 
 
+/**
+ * 设置页：管理同步账号、立即同步按钮与同步状态展示。
+ */
 public class NotesPreferenceActivity extends PreferenceActivity {
     public static final String PREFERENCE_NAME = "notes_preferences";
 
@@ -70,6 +73,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
     private boolean mHasAddedAccount;
 
     @Override
+    // 生命周期：初始化偏好界面、注册同步状态广播并添加头部视图。
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
@@ -89,6 +93,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
     }
 
     @Override
+    // 生命周期：处理新增账号后的自动选中逻辑，并刷新 UI。
     protected void onResume() {
         super.onResume();
 
@@ -117,6 +122,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
     }
 
     @Override
+    // 生命周期：注销广播接收器。
     protected void onDestroy() {
         if (mReceiver != null) {
             unregisterReceiver(mReceiver);
@@ -124,6 +130,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         super.onDestroy();
     }
 
+    // 加载“同步账号”偏好项，并绑定点击行为。
     private void loadAccountPreference() {
         mAccountCategory.removeAll();
 
@@ -132,6 +139,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         accountPref.setTitle(getString(R.string.preferences_account_title));
         accountPref.setSummary(getString(R.string.preferences_account_summary));
         accountPref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+            // 偏好点击：选择/切换/删除同步账号。
             public boolean onPreferenceClick(Preference preference) {
                 if (!GTaskSyncService.isSyncing()) {
                     if (TextUtils.isEmpty(defaultAccount)) {
@@ -154,6 +162,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         mAccountCategory.addPreference(accountPref);
     }
 
+    // 加载“立即同步/取消同步”按钮与上次同步时间。
     private void loadSyncButton() {
         Button syncButton = (Button) findViewById(R.id.preference_sync_button);
         TextView lastSyncTimeView = (TextView) findViewById(R.id.prefenerece_sync_status_textview);
@@ -162,6 +171,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         if (GTaskSyncService.isSyncing()) {
             syncButton.setText(getString(R.string.preferences_button_sync_cancel));
             syncButton.setOnClickListener(new View.OnClickListener() {
+                // 点击回调：取消正在进行的同步。
                 public void onClick(View v) {
                     GTaskSyncService.cancelSync(NotesPreferenceActivity.this);
                 }
@@ -169,6 +179,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         } else {
             syncButton.setText(getString(R.string.preferences_button_sync_immediately));
             syncButton.setOnClickListener(new View.OnClickListener() {
+                // 点击回调：发起一次立即同步。
                 public void onClick(View v) {
                     GTaskSyncService.startSync(NotesPreferenceActivity.this);
                 }
@@ -193,11 +204,13 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         }
     }
 
+    // 刷新设置页 UI。
     private void refreshUI() {
         loadAccountPreference();
         loadSyncButton();
     }
 
+    // 弹窗：展示账号列表供用户选择/新增。
     private void showSelectAccountAlertDialog() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
 
@@ -229,6 +242,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
             }
             dialogBuilder.setSingleChoiceItems(items, checkedItem,
                     new DialogInterface.OnClickListener() {
+                        // 单选回调：设置选中的同步账号并刷新 UI。
                         public void onClick(DialogInterface dialog, int which) {
                             setSyncAccount(itemMapping[which].toString());
                             dialog.dismiss();
@@ -242,6 +256,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
 
         final AlertDialog dialog = dialogBuilder.show();
         addAccountView.setOnClickListener(new View.OnClickListener() {
+            // 点击回调：跳转系统“添加账号”页面。
             public void onClick(View v) {
                 mHasAddedAccount = true;
                 Intent intent = new Intent("android.settings.ADD_ACCOUNT_SETTINGS");
@@ -254,6 +269,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         });
     }
 
+    // 弹窗：提示用户切换/移除同步账号的风险并提供操作菜单。
     private void showChangeAccountConfirmAlertDialog() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
 
@@ -271,6 +287,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
                 getString(R.string.preferences_menu_cancel)
         };
         dialogBuilder.setItems(menuItemArray, new DialogInterface.OnClickListener() {
+            // 菜单回调：切换账号/移除账号。
             public void onClick(DialogInterface dialog, int which) {
                 if (which == 0) {
                     showSelectAccountAlertDialog();
@@ -283,11 +300,13 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         dialogBuilder.show();
     }
 
+    // 获取当前设备上的 Google 账号列表。
     private Account[] getGoogleAccounts() {
         AccountManager accountManager = AccountManager.get(this);
         return accountManager.getAccountsByType("com.google");
     }
 
+    // 设置同步账号：写入偏好并清理本地 gtask 同步字段。
     private void setSyncAccount(String account) {
         if (!getSyncAccountName(this).equals(account)) {
             SharedPreferences settings = getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE);
@@ -304,6 +323,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
 
             // clean up local gtask related info
             new Thread(new Runnable() {
+                // 后台线程：清空数据库中 gtask 相关字段。
                 public void run() {
                     ContentValues values = new ContentValues();
                     values.put(NoteColumns.GTASK_ID, "");
@@ -318,6 +338,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         }
     }
 
+    // 移除同步账号：清除偏好与本地 gtask 字段。
     private void removeSyncAccount() {
         SharedPreferences settings = getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = settings.edit();
@@ -331,6 +352,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
 
         // clean up local gtask related info
         new Thread(new Runnable() {
+            // 后台线程：清空数据库中 gtask 相关字段。
             public void run() {
                 ContentValues values = new ContentValues();
                 values.put(NoteColumns.GTASK_ID, "");
@@ -340,12 +362,14 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         }).start();
     }
 
+    // 读取当前设置的同步账号名。
     public static String getSyncAccountName(Context context) {
         SharedPreferences settings = context.getSharedPreferences(PREFERENCE_NAME,
                 Context.MODE_PRIVATE);
         return settings.getString(PREFERENCE_SYNC_ACCOUNT_NAME, "");
     }
 
+    // 记录上次同步时间（毫秒）。
     public static void setLastSyncTime(Context context, long time) {
         SharedPreferences settings = context.getSharedPreferences(PREFERENCE_NAME,
                 Context.MODE_PRIVATE);
@@ -354,15 +378,18 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         editor.commit();
     }
 
+    // 获取上次同步时间（毫秒）。
     public static long getLastSyncTime(Context context) {
         SharedPreferences settings = context.getSharedPreferences(PREFERENCE_NAME,
                 Context.MODE_PRIVATE);
         return settings.getLong(PREFERENCE_LAST_SYNC_TIME, 0);
     }
 
+    // 同步状态广播接收器：接收 gtask 同步进度并刷新 UI。
     private class GTaskReceiver extends BroadcastReceiver {
 
         @Override
+        // 广播回调：刷新按钮状态与进度文案。
         public void onReceive(Context context, Intent intent) {
             refreshUI();
             if (intent.getBooleanExtra(GTaskSyncService.GTASK_SERVICE_BROADCAST_IS_SYNCING, false)) {
@@ -374,6 +401,7 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         }
     }
 
+    // ActionBar 返回键处理：回到笔记列表页。
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case android.R.id.home:

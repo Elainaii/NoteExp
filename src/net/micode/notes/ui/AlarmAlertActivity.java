@@ -40,6 +40,9 @@ import net.micode.notes.tool.DataUtils;
 import java.io.IOException;
 
 
+/**
+ * 闹钟提醒界面：在锁屏/亮屏场景弹窗提示，并循环播放系统闹钟铃声。
+ */
 public class AlarmAlertActivity extends Activity implements OnClickListener, OnDismissListener {
     private long mNoteId;
     private String mSnippet;
@@ -47,6 +50,7 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
     MediaPlayer mPlayer;
 
     @Override
+    // 生命周期：解析提醒来源并展示弹窗/播放铃声。
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -83,11 +87,13 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    // 工具方法：判断当前屏幕是否点亮。
     private boolean isScreenOn() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         return pm.isScreenOn();
     }
 
+    // 播放闹钟铃声：使用系统默认闹钟铃声并循环播放。
     private void playAlarmSound() {
         Uri url = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
 
@@ -119,6 +125,7 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    // 弹出操作对话框：显示摘要，提供“确定/进入”操作。
     private void showActionDialog() {
         AlertDialog.Builder dialog = new AlertDialog.Builder(this);
         dialog.setTitle(R.string.app_name);
@@ -130,6 +137,7 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         dialog.show().setOnDismissListener(this);
     }
 
+    // 对话框按钮回调：选择“进入”时跳转到编辑页。
     public void onClick(DialogInterface dialog, int which) {
         switch (which) {
             case DialogInterface.BUTTON_NEGATIVE:
@@ -143,11 +151,13 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    // 对话框关闭回调：停止铃声并结束界面。
     public void onDismiss(DialogInterface dialog) {
         stopAlarmSound();
         finish();
     }
 
+    // 停止并释放播放器资源。
     private void stopAlarmSound() {
         if (mPlayer != null) {
             mPlayer.stop();

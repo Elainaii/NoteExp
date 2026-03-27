@@ -31,6 +31,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 
 
+/**
+ * 笔记列表适配器：把笔记/文件夹 Cursor 绑定到 `NotesListItem`，并支持多选管理。
+ */
 public class NotesListAdapter extends CursorAdapter {
     private static final String TAG = "NotesListAdapter";
     private Context mContext;
@@ -39,10 +42,12 @@ public class NotesListAdapter extends CursorAdapter {
     private boolean mChoiceMode;
 
     public static class AppWidgetAttribute {
+        // 选中挂件的属性：id 与类型。
         public int widgetId;
         public int widgetType;
     };
 
+    // 构造：初始化空 Cursor 适配器与多选状态。
     public NotesListAdapter(Context context) {
         super(context, null);
         mSelectedIndex = new HashMap<Integer, Boolean>();
@@ -51,11 +56,13 @@ public class NotesListAdapter extends CursorAdapter {
     }
 
     @Override
+    // 创建列表项视图。
     public View newView(Context context, Cursor cursor, ViewGroup parent) {
         return new NotesListItem(context);
     }
 
     @Override
+    // 绑定列表项数据：构造 `NoteItemData` 并更新选择状态。
     public void bindView(View view, Context context, Cursor cursor) {
         if (view instanceof NotesListItem) {
             NoteItemData itemData = new NoteItemData(context, cursor);
@@ -64,20 +71,24 @@ public class NotesListAdapter extends CursorAdapter {
         }
     }
 
+    // 设置某一项的选中状态。
     public void setCheckedItem(final int position, final boolean checked) {
         mSelectedIndex.put(position, checked);
         notifyDataSetChanged();
     }
 
+    // 是否处于多选模式。
     public boolean isInChoiceMode() {
         return mChoiceMode;
     }
 
+    // 设置多选模式开关，并清空选择。
     public void setChoiceMode(boolean mode) {
         mSelectedIndex.clear();
         mChoiceMode = mode;
     }
 
+    // 全选/取消全选（仅对笔记类型生效）。
     public void selectAll(boolean checked) {
         Cursor cursor = getCursor();
         for (int i = 0; i < getCount(); i++) {
@@ -89,6 +100,7 @@ public class NotesListAdapter extends CursorAdapter {
         }
     }
 
+    // 获取当前选中的条目 id 集合（用于批量操作）。
     public HashSet<Long> getSelectedItemIds() {
         HashSet<Long> itemSet = new HashSet<Long>();
         for (Integer position : mSelectedIndex.keySet()) {
@@ -105,6 +117,7 @@ public class NotesListAdapter extends CursorAdapter {
         return itemSet;
     }
 
+    // 获取选中项关联的挂件信息集合。
     public HashSet<AppWidgetAttribute> getSelectedWidget() {
         HashSet<AppWidgetAttribute> itemSet = new HashSet<AppWidgetAttribute>();
         for (Integer position : mSelectedIndex.keySet()) {
@@ -128,6 +141,7 @@ public class NotesListAdapter extends CursorAdapter {
         return itemSet;
     }
 
+    // 获取当前选中条目数量。
     public int getSelectedCount() {
         Collection<Boolean> values = mSelectedIndex.values();
         if (null == values) {
@@ -143,11 +157,13 @@ public class NotesListAdapter extends CursorAdapter {
         return count;
     }
 
+    // 判断是否已全选（按笔记数量）。
     public boolean isAllSelected() {
         int checkedCount = getSelectedCount();
         return (checkedCount != 0 && checkedCount == mNotesCount);
     }
 
+    // 判断指定位置是否被选中。
     public boolean isSelectedItem(final int position) {
         if (null == mSelectedIndex.get(position)) {
             return false;
@@ -156,17 +172,20 @@ public class NotesListAdapter extends CursorAdapter {
     }
 
     @Override
+    // Cursor 内容变化：重新统计笔记数量。
     protected void onContentChanged() {
         super.onContentChanged();
         calcNotesCount();
     }
 
     @Override
+    // 切换 Cursor：同步重新统计笔记数量。
     public void changeCursor(Cursor cursor) {
         super.changeCursor(cursor);
         calcNotesCount();
     }
 
+    // 统计当前列表中“笔记”条目数量（用于全选判断）。
     private void calcNotesCount() {
         mNotesCount = 0;
         for (int i = 0; i < getCount(); i++) {
